@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+#----------------------------------------------------------------------
+# Dependencies:
+#
+# git clone https://github.com/maxmind/GeoIP2-python.git
+# git clone https://github.com/maxmind/MaxMind-DB-Reader-python.git
+# git clone https://github.com/google/ipaddr-py.git
+#
+#----------------------------------------------------------------------
+#
+# Run:
+#
+# PYTHONPATH=GeoIP2-python:MaxMind-DB-Reader-python:ipaddr-py domain2loc
+#
+#----------------------------------------------------------------------
+#
+# Docs:
+#
+# For GeoIP2-python: http://geoip2.readthedocs.org/en/latest/
+#
+#----------------------------------------------------------------------
+
+import csv
+import socket
+import sys
+
+class Domain(object):
+    def __init__(self, name, count=0):
+        self.name = name
+        self.count = count
+        self.ip = None
+
+def loadDomainsCSV(file):
+    result = []
+    with open(file, 'rb') as csvfile:
+        reader = csv.reader(csvfile)
+        return [Domain(r[0], r[1]) for r in reader]
+        # for row in reader:
+            # print '%r' % (row)
+
+def gethostbyname(hostname):
+    try:
+        return socket.gethostbyname(hostname)
+    except:
+        return None
+
+def resolveDomain(name):
+    ip = gethostbyname(name)
+    if not ip:
+        # Try adding 'www' prefix
+        ip = gethostbyname('www.' + name)
+    if not ip:
+        # Drop the original prefix
+        name2 = '.'.join(name.split('.')[1:])
+        ip = gethostbyname(name2)
+    if not ip:
+        # Try adding 'www' to the shortened name
+        ip = gethostbyname('www.' + name2)
+    return ip
+
+if __name__ == '__main__':
+    domains = loadDomainsCSV(sys.argv[1])
+    for d in domains:
+        if '@' in d.name:
+            # We know there's some bad domains in the data
+            continue
+        d.ip = resolveDomain(d.name)
