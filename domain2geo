@@ -25,19 +25,23 @@ import csv
 import socket
 import sys
 
+import geoip2.database
+
+
 class Domain(object):
     def __init__(self, name, count=0):
         self.name = name
         self.count = count
         self.ip = None
+        self.latitude = None
+        self.longitude = None
+
 
 def loadDomainsCSV(file):
     result = []
     with open(file, 'rb') as csvfile:
         reader = csv.reader(csvfile)
-        return [Domain(r[0], r[1]) for r in reader]
-        # for row in reader:
-            # print '%r' % (row)
+        return [Domain(r[0], int(r[1])) for r in reader]
 
 def gethostbyname(hostname):
     try:
@@ -66,3 +70,19 @@ if __name__ == '__main__':
             # We know there's some bad domains in the data
             continue
         d.ip = resolveDomain(d.name)
+    cityReader = geoip2.database.Reader('GeoLite2-City.mmdb')
+    for d in domains:
+        if not d.ip:
+            # print 'No IP for %s' % (d.name)
+            continue
+        try:
+            city = cityReader.city(d.ip)
+            d.longitude = city.location.longitude
+            d.latitude = city.location.latitude
+        except:
+            # print '%s errored' % (d.name)
+            pass
+    for d in domains:
+        if d.longitude and d.latitude:
+            print '%s, %d, %s, %f, %f' % (d.name, d.count, d.ip, d.latitude,
+                                          d.longitude)
